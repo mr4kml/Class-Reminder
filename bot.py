@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from threading import Thread
 from flask import Flask
-from telegram import Update, Bot
+from telegram import Update, Bot, BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -14,49 +14,62 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-# Grab token from Render Environment Variables securely
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 USERS_FILE = "users.json"
 
-# Schedule Data Dictionary
+# Complete schedule with all breakout and main class professors
 DAILY_SCHEDULE = {
-    0: """📚 **Monday Schedule**
-- Breakout class (N) G1 - 001 | 9:00 - 10:00 am (Physics)
-- Breakout class (Br) G6 - 004 | 9:00 - 10:00 am (Physics 1)
-- Breakout class (B) G4 - 002 | 10:15 - 11:15 am (English 1)
-- Breakout class (N) G2 - 001 | 10:15 - 11:15 am (Physics 1)
-- Main class | 2:00 - 3:15 pm (Physics 1)
-- Main class | 3:45 - 5:00 pm (Calculus 1)""",
-
-    1: """📚 **Tuesday Schedule**
-- Breakout class (B) G5 - 002 | 9:00 - 10:00 am (English 1)
-- Breakout class (D) G4 - 005 | 9:00 - 10:00 am (Calculus 1)
-- Breakout class (T) G1 - 001 | 9:00 - 10:00 am (Calculus 1)
-- Breakout class (B) G6 - 002 | 10:15 - 11:15 am (English 1)
-- Breakout class (D) G3 - 005 | 10:15 - 11:15 am (Calculus 1)
-- Breakout class (T) G2 - 001 | 10:15 - 11:15 am (Calculus 1)
-- Main class | 2:00 - 3:30 pm (English 1)""",
-
-    2: """📚 **Wednesday Schedule**
-- Breakout class (N) G3 - 001 | 9:00 - 10:00 am (Physics 1)
-- Breakout class (Br) G5 - 004 | 9:00 - 10:00 am (Physics 1)
-- Breakout class (S) G2 - 003 | 10:15 - 11:15 am (English 1)
-- Breakout class (Br) G4 - 004 | 10:15 - 11:15 am (Physics 1)
-- Main class | 2:00 - 3:15 pm (Physics 1)
-- Main class | 3:45 - 5:00 pm (Calculus 1)""",
-
-    3: """📚 **Thursday Schedule**
-- Breakout class (S) G1 - 003 | 9:00 - 10:00 am (English 1)
-- Breakout class (Z) G6 - 002 | 9:00 - 10:00 am (Calculus 1)
-- Breakout class (S) G3 - 003 | 10:15 - 11:15 am (English 1)
-- Breakout class (Z) G5 - 002 | 10:15 - 11:15 am (Calculus 1)
-- Main class | 2:00 - 3:30 pm""",
-
-    4: """📚 **Friday Schedule**
-- Main class | 3:45 - 5:00 pm (Calculus 1)""",
-
-    5: "🎉 **Saturday Schedule**\nNo classes today!",
-    6: "🎉 **Sunday Schedule**\nNo classes today!"
+    0: (
+        "📚 **MONDAY SCHEDULE**\n\n"
+        "🔸 **Breakout Classes (Morning):**\n"
+        "  • 09:00 - 10:00 am | Physics - Dr. Nebiyu (G1 - 001)\n"
+        "  • 09:00 - 10:00 am | Physics 1 - Bruhanu (G6 - 004)\n"
+        "  • 10:15 - 11:15 am | English 1 - Dr. Bereket (G4 - 002)\n"
+        "  • 10:15 - 11:15 am | Physics 1 - Dr. Nebiyu (G2 - 001)\n\n"
+        "🔸 **Main Classes (Afternoon):**\n"
+        "  • 2:00 - 3:15 pm | Physics 1 - Prof. Solomon Bililign\n"
+        "  • 3:45 - 5:00 pm | Calculus 1 - Prof. Abdulkadir Hassen"
+    ),
+    1: (
+        "📚 **TUESDAY SCHEDULE**\n\n"
+        "🔸 **Breakout Classes (Morning):**\n"
+        "  • 09:00 - 10:00 am | English 1 - Dr. Bereket (G5 - 002)\n"
+        "  • 09:00 - 10:00 am | Calculus 1 - Dr. Demisse (G4 - 005)\n"
+        "  • 09:00 - 10:00 am | Calculus 1 - Dr. Tekalign (G1 - 001)\n"
+        "  • 10:15 - 11:15 am | English 1 - Dr. Bereket (G6 - 002)\n"
+        "  • 10:15 - 11:15 am | Calculus 1 - Dr. Demisse (G3 - 005)\n"
+        "  • 10:15 - 11:15 am | Calculus 1 - Dr. Tekalign (G2 - 001)\n\n"
+        "🔸 **Main Classes (Afternoon):**\n"
+        "  • 2:00 - 3:30 pm | English 1 - Prof. Karen Sichler"
+    ),
+    2: (
+        "📚 **WEDNESDAY SCHEDULE**\n\n"
+        "🔸 **Breakout Classes (Morning):**\n"
+        "  • 09:00 - 10:00 am | Physics 1 - Dr. Nebiyu (G3 - 001)\n"
+        "  • 09:00 - 10:00 am | Physics 1 - Bruhanu (G5 - 004)\n"
+        "  • 10:15 - 11:15 am | English 1 - Dr. Sintayehu (G2 - 003)\n"
+        "  • 10:15 - 11:15 am | Physics 1 - Bruhanu (G4 - 004)\n\n"
+        "🔸 **Main Classes (Afternoon):**\n"
+        "  • 2:00 - 3:15 pm | Physics 1 - Prof. Solomon Bililign\n"
+        "  • 3:45 - 5:00 pm | Calculus 1 - Prof. Abdulkadir Hassen"
+    ),
+    3: (
+        "📚 **THURSDAY SCHEDULE**\n\n"
+        "🔸 **Breakout Classes (Morning):**\n"
+        "  • 09:00 - 10:00 am | English 1 - Dr. Sintayehu (G1 - 003)\n"
+        "  • 09:00 - 10:00 am | Calculus 1 - Dr. Zebene (G6 - 002)\n"
+        "  • 10:15 - 11:15 am | English 1 - Dr. Sintayehu (G3 - 003)\n"
+        "  • 10:15 - 11:15 am | Calculus 1 - Dr. Zebene (G5 - 002)\n\n"
+        "🔸 **Main Classes (Afternoon):**\n"
+        "  • 2:00 - 3:30 pm | Main Class"
+    ),
+    4: (
+        "📚 **FRIDAY SCHEDULE**\n\n"
+        "🔸 **Main Classes (Afternoon):**\n"
+        "  • 3:45 - 5:00 pm | Calculus 1 - Prof. Abdulkadir Hassen"
+    ),
+    5: "🎉 **SATURDAY SCHEDULE**\n\nNo classes today! Enjoy your weekend.",
+    6: "🎉 **SUNDAY SCHEDULE**\n\nNo classes today! Enjoy your weekend."
 }
 
 def load_users():
@@ -75,21 +88,19 @@ def save_users(users):
 subscribers = load_users()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Triggered automatically when someone presses 'Start' on your bot."""
     chat_id = update.effective_chat.id
     if chat_id not in subscribers:
         subscribers.add(chat_id)
         save_users(subscribers)
         logging.info(f"New subscriber added: {chat_id}")
     
-    # Get today's schedule based on current weekday (Monday = 0, Sunday = 6)
     weekday = datetime.now().weekday()
     schedule_message = DAILY_SCHEDULE.get(weekday, "No schedule found.")
     
-    # Welcome message combined with today's schedule
     response_text = (
-        "👋 **Welcome!** You are now subscribed to daily schedule reminders for 7:00 AM.\n\n"
-        f"Here is today's schedule:\n\n{schedule_message}"
+        "👋 **Welcome!** You are successfully subscribed to daily schedule reminders for **7:00 AM**.\n\n"
+        "Here is what's on your agenda right now:\n\n"
+        f"{schedule_message}"
     )
     
     await update.message.reply_text(response_text, parse_mode="Markdown")
@@ -105,9 +116,17 @@ async def send_schedule_to_all(bot: Bot):
         except Exception as e:
             logging.error(f"Failed to send to {chat_id}: {e}")
 
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand("start", "Start bot & view today's schedule")
+    ]
+    await bot.set_my_commands(commands)
+
 async def run_telegram_bot():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
+
+    await set_bot_commands(app.bot)
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(send_schedule_to_all, 'cron', hour=7, minute=0, args=[app.bot])
@@ -121,7 +140,6 @@ async def run_telegram_bot():
     while True:
         await asyncio.sleep(3600)
 
-# Flask app to satisfy Render's web service requirement
 app_flask = Flask(__name__)
 
 @app_flask.route('/')
@@ -133,9 +151,6 @@ def run_flask():
     app_flask.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    # Start Flask in a background thread
     t = Thread(target=run_flask)
     t.start()
-
-    # Run the Telegram bot in the main thread
     asyncio.run(run_telegram_bot())
