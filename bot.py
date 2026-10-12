@@ -75,15 +75,24 @@ def save_users(users):
 subscribers = load_users()
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Triggered automatically when someone presses 'Start' on your bot."""
     chat_id = update.effective_chat.id
     if chat_id not in subscribers:
         subscribers.add(chat_id)
         save_users(subscribers)
         logging.info(f"New subscriber added: {chat_id}")
     
-    await update.message.reply_text(
-        "👋 Welcome! You are now subscribed to the daily schedule reminders. You'll get your updates every morning at 7:00 AM!"
+    # Get today's schedule based on current weekday (Monday = 0, Sunday = 6)
+    weekday = datetime.now().weekday()
+    schedule_message = DAILY_SCHEDULE.get(weekday, "No schedule found.")
+    
+    # Welcome message combined with today's schedule
+    response_text = (
+        "👋 **Welcome!** You are now subscribed to daily schedule reminders for 7:00 AM.\n\n"
+        f"Here is today's schedule:\n\n{schedule_message}"
     )
+    
+    await update.message.reply_text(response_text, parse_mode="Markdown")
 
 async def send_schedule_to_all(bot: Bot):
     weekday = datetime.now().weekday()
