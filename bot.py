@@ -99,7 +99,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     response_text = (
         "👋 **Welcome!** You are successfully subscribed to daily schedule reminders for **7:00 AM**.\n\n"
-        "Here is what's on your agenda right now:\n\n"
+        "Here is the schedule for today:\n\n"
         f"{schedule_message}"
     )
     
